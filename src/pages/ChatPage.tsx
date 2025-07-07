@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, History, Trash2, Plus, Minimize2, MessageCircle, ArrowLeft } from 'lucide-react';
+import { Send, History, Trash2, Plus, Minimize2, MessageCircle, ArrowLeft, Mic, MicOff, Paperclip, X, Image as ImageIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useChat } from '../contexts/ChatContext';
 import { useAuth } from '../contexts/AuthContext';
+import MessageFormatter from '../components/FormattedMessage';
 
 const ChatPage = () => {
   const navigate = useNavigate();
@@ -12,6 +13,8 @@ const ChatPage = () => {
     chatHistory,
     isLoading,
     sendMessage,
+    sendMessageWithImage,
+    transcribeAudio,
     createNewSession,
     loadSession,
     deleteSession,
@@ -20,17 +23,23 @@ const ChatPage = () => {
 
   const [message, setMessage] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
-    // Only scroll if there are messages and we're not at the very top
     if (messagesEndRef.current && currentSession?.messages.length > 0) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
   };
 
   useEffect(() => {
-    // Wait for auth loading to complete before checking authentication
     if (!authLoading && !isAuthenticated) {
       navigate('/signin');
       return;
@@ -41,7 +50,6 @@ const ChatPage = () => {
     }
   }, [isAuthenticated, authLoading, currentSession, navigate, createNewSession]);
 
-  // Only scroll to bottom when new messages are added, not on page load
   useEffect(() => {
     if (currentSession?.messages.length > 0) {
       const timer = setTimeout(() => {
@@ -51,22 +59,109 @@ const ChatPage = () => {
     }
   }, [currentSession?.messages.length]);
 
+  // Voice recording functions
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+      
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        const audioFile = new File([audioBlob], 'recording.wav', { type: 'audio/wav' });
+        
+        try {
+          const transcription = await transcribeAudio(audioFile);
+          setMessage(transcription);
+        } catch (error) {
+          console.error('Error transcribing audio:', error);
+          alert('Failed to transcribe audio. Please try again.');
+        }
+        
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      alert('Please allow microphone access to use voice recording.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  // Image handling functions
+  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.type.startsWith('image/')) {
+        setSelectedImage(file);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setImagePreview(e.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+        setShowAttachmentMenu(false);
+      } else {
+        alert('Please select an image file.');
+      }
+    }
+  };
+
+  const removeImage = () => {
+    setSelectedImage(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || isLoading) return;
+    if ((!message.trim() && !selectedImage) || isLoading) return;
 
     const messageText = message;
     setMessage('');
-    await sendMessage(messageText);
+    
+    try {
+      if (selectedImage) {
+        await sendMessageWithImage(messageText, selectedImage);
+        removeImage();
+      } else {
+        await sendMessage(messageText);
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
   };
 
   const handleMinimize = () => {
-    // Open widget and navigate back to home
     openWidget();
     navigate('/');
   };
 
-  // Show loading spinner while auth is loading
+  const handleAttachmentClick = () => {
+    setShowAttachmentMenu(!showAttachmentMenu);
+  };
+
+  const handleImageUploadClick = () => {
+    fileInputRef.current?.click();
+    setShowAttachmentMenu(false);
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen pt-16 bg-gradient-to-br from-gray-900 via-blue-900/10 to-gray-900 flex items-center justify-center">
@@ -237,7 +332,7 @@ const ChatPage = () => {
                 <button
                   onClick={() => navigate('/')}
                   className="p-2 rounded-lg bg-gray-700/50 hover:bg-gray-600/50 transition-colors duration-300"
-                  title='ArrowLeft'
+                  title="Go back"
                 >
                   <ArrowLeft className="h-5 w-5 text-gray-300" />
                 </button>
@@ -275,7 +370,7 @@ const ChatPage = () => {
             </div>
           </div>
 
-          {/* Messages */}
+                    {/* Messages */}
           <div className="flex-1 p-4 md:p-6 overflow-y-auto">
             {currentSession?.messages.length === 0 && (
               <div className="text-center text-gray-400 mt-8 md:mt-16">
@@ -348,7 +443,23 @@ const ChatPage = () => {
                           : 'bg-gray-700/50 text-gray-100 border border-gray-600'
                       }`}
                     >
-                      <p className="leading-relaxed">{msg.text}</p>
+                      {msg.image && (
+                        <div className="mb-2">
+                          <img
+                            src={msg.image}
+                            alt="Uploaded image"
+                            className="max-w-full h-auto rounded-lg max-h-64 object-cover"
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Use MessageFormatter for bot messages, regular text for user messages */}
+                      {msg.isUser ? (
+                        <p className="leading-relaxed">{msg.text}</p>
+                      ) : (
+                        <MessageFormatter text={msg.text} className="leading-relaxed" />
+                      )}
+                      
                       <p className={`text-xs mt-1 md:mt-2 ${msg.isUser ? 'text-blue-100' : 'text-gray-400'}`}>
                         {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
@@ -378,26 +489,120 @@ const ChatPage = () => {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Image Preview */}
+          {imagePreview && (
+            <div className="px-4 md:px-6 pb-2">
+              <div className="flex items-center space-x-2 bg-gray-700/50 p-3 rounded-lg border border-gray-600">
+                <div className="relative">
+                  <img
+                    src={imagePreview}
+                    alt="Selected image"
+                    className="w-16 h-16 object-cover rounded-lg"
+                  />
+                  <button
+                    onClick={removeImage}
+                    className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                  >
+                    <X className="h-3 w-3 text-white" />
+                  </button>
+                </div>
+                <div className="flex-1">
+                  <p className="text-white text-sm font-medium">Image Selected</p>
+                  <p className="text-gray-400 text-xs">{selectedImage?.name}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Input */}
           <div className="p-4 md:p-6 border-t border-gray-700">
             <form onSubmit={handleSendMessage} className="flex space-x-2 md:space-x-4">
+              {/* Attachment Button */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={handleAttachmentClick}
+                  className={`p-3 md:p-4 rounded-lg md:rounded-xl transition-all duration-300 ${
+                    showAttachmentMenu 
+                      ? 'bg-blue-600/20 text-blue-400 border border-blue-400/30' 
+                      : 'bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 border border-gray-600'
+                  }`}
+                >
+                  <Paperclip className="h-4 w-4 md:h-5 md:w-5" />
+                </button>
+
+                {/* Attachment Menu */}
+                {showAttachmentMenu && (
+                  <div className="absolute bottom-full left-0 mb-2 bg-gray-800/95 backdrop-blur-md border border-gray-700 rounded-lg shadow-lg p-2 min-w-[120px] z-10">
+                    <button
+                      type="button"
+                      onClick={handleImageUploadClick}
+                      className="w-full flex items-center space-x-2 px-3 py-2 text-gray-300 hover:bg-gray-700/50 rounded-lg transition-colors text-sm"
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                      <span>Image</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Voice Recording Button */}
+              <button
+                type="button"
+                onClick={isRecording ? stopRecording : startRecording}
+                className={`p-3 md:p-4 rounded-lg md:rounded-xl transition-all duration-300 ${
+                  isRecording 
+                    ? 'bg-red-600/20 text-red-400 border border-red-400/30 animate-pulse' 
+                    : 'bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 border border-gray-600'
+                }`}
+                disabled={isLoading}
+                title={isRecording ? 'Stop recording' : 'Start voice recording'}
+              >
+                {isRecording ? (
+                  <MicOff className="h-4 w-4 md:h-5 md:w-5" />
+                ) : (
+                  <Mic className="h-4 w-4 md:h-5 md:w-5" />
+                )}
+              </button>
+
+              {/* Text Input */}
               <input
                 type="text"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Type your message here..."
+                placeholder={isRecording ? "Recording..." : "Type your message here..."}
                 className="flex-1 px-3 py-3 md:px-6 md:py-4 bg-gray-700/50 border border-gray-600 rounded-lg md:rounded-xl text-white placeholder-gray-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20 transition-all duration-300 text-sm md:text-base"
-                disabled={isLoading}
+                disabled={isLoading || isRecording}
               />
+
+              {/* Send Button */}
               <button
                 type="submit"
-                disabled={!message.trim() || isLoading}
-                className="px-4 py-3 md:px-6 md:py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg md:rounded-xl transition-all duration-300 transform hover:scale-105"
+                disabled={(!message.trim() && !selectedImage) || isLoading || isRecording}
+                className="px-4 py-3 md:px-6 md:py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg md:rounded-xl transition-all duration-300 transform hover:scale-105 disabled:hover:scale-100"
+                title="Send message"
               >
                 <Send className="h-4 w-4 md:h-5 md:w-5" />
               </button>
             </form>
+
+            {/* Recording Status */}
+            {isRecording && (
+              <div className="mt-2 flex items-center justify-center space-x-2 text-red-400">
+                <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+                <span className="text-sm">Recording... Click mic to stop</span>
+              </div>
+            )}
           </div>
+
+          {/* Hidden File Input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageSelect}
+            className="hidden"
+          />
         </div>
       </div>
     </div>

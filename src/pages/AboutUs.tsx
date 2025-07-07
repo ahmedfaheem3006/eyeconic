@@ -3,6 +3,7 @@ import { Users, User, Award, Target, Heart } from "lucide-react";
 import DownloadSection from "../components/DownloadSection";
 import TeamMemberModal from "../components/TeamMemberModal";
 import Footer from "../components/Footer";
+import ChatBot from "../components/ChatBot";
 
 const AboutUs = () => {
   const [selectedMember, setSelectedMember] = useState<any>(null);
@@ -90,7 +91,7 @@ const AboutUs = () => {
     {
       id: 7,
       name: "Ahmed Essam",
-      role: "AI",
+      role: "Backend Development",
       image: "user-icon",
       bio: "AR developer creating immersive experiences",
       email: "member7@eyeconic.edu",
@@ -400,6 +401,7 @@ const AboutUs = () => {
 
       <DownloadSection />
       <Footer />
+      <ChatBot/>
     </div>
   );
 };

@@ -85,7 +85,7 @@ const Navbar = () => {
               <img
                 src="/WhatsApp Image 2025-06-30 at 03.44.01_68652aa2-Photoroom.png"
                 alt="Eyeconic Logo"
-                className="h-16 w-16 object-contain group-hover:scale-110 transition-transform duration-300"
+                className="h-[90px] w-[90px] object-contain group-hover:scale-110 transition-transform duration-300"
               />
             </Link>
 

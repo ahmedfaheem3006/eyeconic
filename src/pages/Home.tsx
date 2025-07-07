@@ -3,6 +3,7 @@ import { ArrowRight, Eye, Zap, Wifi, Battery, Cpu, Smartphone } from 'lucide-rea
 import { Link } from 'react-router-dom';
 import DownloadSection from '../components/DownloadSection';
 import Footer from '../components/Footer';
+import ChatBot from '../components/ChatBot';
 
 const Home = () => {
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
@@ -506,6 +507,7 @@ const Home = () => {
 
       <DownloadSection />
       <Footer/>
+      <ChatBot/>
     </div>
   );
 };

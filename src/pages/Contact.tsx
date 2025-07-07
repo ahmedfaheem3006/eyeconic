@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send, User, MessageSquare, ShoppingCart } from 'lucide-react';
 import DownloadSection from '../components/DownloadSection';
 import Footer from '../components/Footer';
+import ChatBot from '../components/ChatBot';
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -342,6 +343,7 @@ const Contact = () => {
 
       <DownloadSection />
       <Footer/>
+      <ChatBot/>
     </div>
   );
 };

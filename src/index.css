@@ -69,3 +69,69 @@ body {
   color: #f3f4f6; /* Default text color for better contrast */
 }
 
+
+.prose {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.prose p {
+  margin-bottom: 0.75rem;
+}
+
+.prose ul, .prose ol {
+  margin-bottom: 0.75rem;
+}
+
+.prose li {
+  margin-bottom: 0.25rem;
+}
+
+.prose h1, .prose h2, .prose h3 {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose code {
+  font-size: 0.8rem;
+}
+
+.prose pre {
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+.prose blockquote {
+  margin-bottom: 1rem;
+}
+
+.prose table {
+  margin-bottom: 1rem;
+}
+
+
+
+.markdown-content {
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.markdown-content * {
+  max-width: 100%;
+}
+
+.markdown-content p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content ul:last-child,
+.markdown-content ol:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content h1:first-child,
+.markdown-content h2:first-child,
+.markdown-content h3:first-child {
+  margin-top: 0;
+}

@@ -3,6 +3,7 @@ import { Eye, Cpu, Battery, Wifi, Camera, Headphones, Shield, Zap, ArrowRight, R
 import { Link } from 'react-router-dom';
 import DownloadSection from '../components/DownloadSection';
 import Footer from '../components/Footer';
+import ChatBot from '../components/ChatBot';
 
 const Product = () => {
   const [activeTab, setActiveTab] = useState('specs');
@@ -393,6 +394,7 @@ const Product = () => {
         }
       `}</style>
       <Footer/>
+      <ChatBot/>
     </div>
   );
 };
